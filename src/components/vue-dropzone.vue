@@ -8,7 +8,8 @@
 
 <script>
 import Dropzone from "dropzone"; //eslint-disable-line
-import awsEndpoint from "../services/urlsigner";
+// ie 10 대응 코드 포함 import 제거 미사용 aws 기능
+// import awsEndpoint from "../services/urlsigner";
 
 Dropzone.autoDiscover = false;
 
@@ -65,20 +66,20 @@ export default {
       Object.keys(this.options).forEach(function(key) {
         defaultValues[key] = this.options[key];
       }, this);
-      if (this.awss3 !== null) {
-        defaultValues["autoProcessQueue"] = false;
-        this.isS3 = true; //eslint-disable-line
-        this.isS3OverridesServerPropagation =
-          this.awss3.sendFileToServer === false; //eslint-disable-line
-        if (this.options.autoProcessQueue !== undefined)
-          this.wasQueueAutoProcess = this.options.autoProcessQueue; //eslint-disable-line
+      // if (this.awss3 !== null) {
+      //   defaultValues["autoProcessQueue"] = false;
+      //   this.isS3 = true; //eslint-disable-line
+      //   this.isS3OverridesServerPropagation =
+      //     this.awss3.sendFileToServer === false; //eslint-disable-line
+      //   if (this.options.autoProcessQueue !== undefined)
+      //     this.wasQueueAutoProcess = this.options.autoProcessQueue; //eslint-disable-line
 
-        if (this.isS3OverridesServerPropagation) {
-          defaultValues["url"] = function(files) {
-            return files[0].s3Url;
-          };
-        }
-      }
+      //   if (this.isS3OverridesServerPropagation) {
+      //     defaultValues["url"] = function(files) {
+      //       return files[0].s3Url;
+      //     };
+      //   }
+      // }
       return defaultValues;
     }
   },
@@ -123,9 +124,9 @@ export default {
       }
 
       vm.$emit("vdropzone-file-added", file);
-      if (vm.isS3 && vm.wasQueueAutoProcess && !file.manuallyAdded) {
-        vm.getSignedAndUploadToS3(file);
-      }
+      // if (vm.isS3 && vm.wasQueueAutoProcess && !file.manuallyAdded) {
+      //   vm.getSignedAndUploadToS3(file);
+      // }
     });
 
     this.dropzone.on("addedfiles", function(files) {
@@ -140,17 +141,17 @@ export default {
 
     this.dropzone.on("success", function(file, response) {
       vm.$emit("vdropzone-success", file, response);
-      if (vm.isS3) {
-        if (vm.isS3OverridesServerPropagation) {
-          var xmlResponse = new window.DOMParser().parseFromString(
-            response,
-            "text/xml"
-          );
-          var s3ObjectLocation = xmlResponse.firstChild.children[0].innerHTML;
-          vm.$emit("vdropzone-s3-upload-success", s3ObjectLocation);
-        }
-        if (vm.wasQueueAutoProcess) vm.setOption("autoProcessQueue", false);
-      }
+      // if (vm.isS3) {
+      //   if (vm.isS3OverridesServerPropagation) {
+      //     var xmlResponse = new window.DOMParser().parseFromString(
+      //       response,
+      //       "text/xml"
+      //     );
+      //     var s3ObjectLocation = xmlResponse.firstChild.children[0].innerHTML;
+      //     vm.$emit("vdropzone-s3-upload-success", s3ObjectLocation);
+      //   }
+      //   if (vm.wasQueueAutoProcess) vm.setOption("autoProcessQueue", false);
+      // }
     });
 
     this.dropzone.on("successmultiple", function(file, response) {
@@ -159,7 +160,7 @@ export default {
 
     this.dropzone.on("error", function(file, message, xhr) {
       vm.$emit("vdropzone-error", file, message, xhr);
-      if (this.isS3) vm.$emit("vdropzone-s3-upload-error");
+      // if (this.isS3) vm.$emit("vdropzone-s3-upload-error");
     });
 
     this.dropzone.on("errormultiple", function(files, message, xhr) {
@@ -167,16 +168,16 @@ export default {
     });
 
     this.dropzone.on("sending", function(file, xhr, formData) {
-      if (vm.isS3) {
-        if (vm.isS3OverridesServerPropagation) {
-          let signature = file.s3Signature;
-          Object.keys(signature).forEach(function(key) {
-            formData.append(key, signature[key]);
-          });
-        } else {
-          formData.append("s3ObjectLocation", file.s3ObjectLocation);
-        }
-      }
+      // if (vm.isS3) {
+      //   if (vm.isS3OverridesServerPropagation) {
+      //     let signature = file.s3Signature;
+      //     Object.keys(signature).forEach(function(key) {
+      //       formData.append(key, signature[key]);
+      //     });
+      //   } else {
+      //     formData.append("s3ObjectLocation", file.s3ObjectLocation);
+      //   }
+      // }
       vm.$emit("vdropzone-sending", file, xhr, formData);
     });
 
@@ -315,13 +316,13 @@ export default {
     },
     processQueue: function() {
       let dropzoneEle = this.dropzone;
-      if (this.isS3 && !this.wasQueueAutoProcess) {
-        this.getQueuedFiles().forEach(function (file) {
-          this.getSignedAndUploadToS3(file);
-        });
-      } else {
+      // if (this.isS3 && !this.wasQueueAutoProcess) {
+      //   this.getQueuedFiles().forEach(function (file) {
+      //     this.getSignedAndUploadToS3(file);
+      //   });
+      // } else {
         this.dropzone.processQueue();
-      }
+      // }
       this.dropzone.on("success", function() {
         dropzoneEle.options.autoProcessQueue = true;
       });
@@ -389,47 +390,47 @@ export default {
     getActiveFiles: function() {
       return this.dropzone.getActiveFiles();
     },
-    getSignedAndUploadToS3: function(file) {
-      var promise = awsEndpoint.sendFile(
-        file,
-        this.awss3,
-        this.isS3OverridesServerPropagation
-      );
-      if (!this.isS3OverridesServerPropagation) {
-        promise.then(function (response) {
-          if (response.success) {
-            file.s3ObjectLocation = response.message;
-            setTimeout(function () { 
-              this.dropzone.processFile(file) 
-            });
-            this.$emit("vdropzone-s3-upload-success", response.message);
-          } else {
-            if ("undefined" !== typeof response.message) {
-              this.$emit("vdropzone-s3-upload-error", response.message);
-            } else {
-              this.$emit(
-                "vdropzone-s3-upload-error",
-                "Network Error : Could not send request to AWS. (Maybe CORS error)"
-              );
-            }
-          }
-        });
-      } else {
-        promise.then(function () {
-          setTimeout(function () { 
-            this.dropzone.processFile(file)
-          });
-        });
-      }
-      promise.catch(function (error) {
-        alert(error);
-      });
-    },
-    setAWSSigningURL: function(location) {
-      if (this.isS3) {
-        this.awss3.signingURL = location;
-      }
-    }
+    // getSignedAndUploadToS3: function(file) {
+    //   var promise = awsEndpoint.sendFile(
+    //     file,
+    //     this.awss3,
+    //     this.isS3OverridesServerPropagation
+    //   );
+    //   if (!this.isS3OverridesServerPropagation) {
+    //     promise.then(function (response) {
+    //       if (response.success) {
+    //         file.s3ObjectLocation = response.message;
+    //         setTimeout(function () { 
+    //           this.dropzone.processFile(file) 
+    //         });
+    //         this.$emit("vdropzone-s3-upload-success", response.message);
+    //       } else {
+    //         if ("undefined" !== typeof response.message) {
+    //           this.$emit("vdropzone-s3-upload-error", response.message);
+    //         } else {
+    //           this.$emit(
+    //             "vdropzone-s3-upload-error",
+    //             "Network Error : Could not send request to AWS. (Maybe CORS error)"
+    //           );
+    //         }
+    //       }
+    //     });
+    //   } else {
+    //     promise.then(function () {
+    //       setTimeout(function () { 
+    //         this.dropzone.processFile(file)
+    //       });
+    //     });
+    //   }
+    //   promise.catch(function (error) {
+    //     alert(error);
+    //   });
+    // },
+    // setAWSSigningURL: function(location) {
+    //   if (this.isS3) {
+    //     this.awss3.signingURL = location;
+    //   }
+    // }
   }
 };
 </script>
